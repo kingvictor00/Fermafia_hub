@@ -29,12 +29,14 @@ function close2048Game() {
   if (!gameOver && score > 0 && !confirm("Are you sure you want to exit? Progress will be lost.")) return;
   togglePopup('game2048-popup', false);
   document.removeEventListener('keydown', keyHandler);
+  document.getElementById('grid-container').removeEventListener('touchstart', touchStartHandler);
+  document.getElementById('grid-container').removeEventListener('touchend', touchEndHandler);
 }
 function closePostJobs() { togglePopup('post-jobs-popup', false); }
 function closeMentionPopup() { togglePopup('mention-popup', false); }
 function playMemoryGame() { togglePopup('memory-popup', true); toggleMenu(); startMemoryGame(); }
 function readZKStories() { togglePopup('zk-stories-popup', true); toggleMenu(); renderZKStories(); }
-function play2048() { togglePopup('game2048-popup', true); toggleMenu(); init2048(); document.addEventListener('keydown', keyHandler); }
+function play2048() { togglePopup('game2048-popup', true); toggleMenu(); init2048(); document.addEventListener('keydown', keyHandler); addTouchListeners(); }
 function playPostJobs() { togglePopup('post-jobs-popup', true); toggleMenu(); }
 
 
@@ -340,6 +342,8 @@ let score = 0;
 let bestScore = localStorage.getItem('best2048') || 0;
 let gameOver = false;
 let keyHandler;
+let touchStartHandler;
+let touchEndHandler;
 
 function play2048() {
   const popup = document.getElementById("game2048-popup");
@@ -348,6 +352,50 @@ function play2048() {
   init2048();
   keyHandler = handleKeyDown;
   document.addEventListener('keydown', keyHandler);
+  addTouchListeners();
+}
+
+function addTouchListeners() {
+  const gridContainer = document.getElementById('grid-container');
+  let touchStartX, touchStartY;
+  touchStartHandler = (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+    e.preventDefault();
+  };
+  touchEndHandler = (e) => {
+    if (gameOver) return;
+    const touchEndX = e.changedTouches[0].screenX;
+    const touchEndY = e.changedTouches[0].screenY;
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
+    let moved = false;
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      if (Math.abs(deltaX) > 30) { // Threshold to detect swipe
+        if (deltaX > 0) moved = moveRight();
+        else moved = moveLeft();
+      }
+    } else {
+      if (Math.abs(deltaY) > 30) {
+        if (deltaY > 0) moved = moveDown();
+        else moved = moveUp();
+      }
+    }
+    if (moved) {
+      addNewTile();
+      renderGrid();
+      document.getElementById('score').innerText = score;
+      if (score > bestScore) {
+        bestScore = score;
+        localStorage.setItem('best2048', bestScore);
+        document.getElementById('best-score').innerText = bestScore;
+      }
+      checkGameOver();
+    }
+    e.preventDefault();
+  };
+  gridContainer.addEventListener('touchstart', touchStartHandler);
+  gridContainer.addEventListener('touchend', touchEndHandler);
 }
 
 function init2048() {
